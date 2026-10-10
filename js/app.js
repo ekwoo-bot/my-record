@@ -3,13 +3,13 @@
 // 분류 목록 (여기만 고치면 입력 창의 선택 상자에도 반영돼요)
 const CATEGORIES = ['대외활동', '수업/학업', '아르바이트', '자격증', '수상', '기타'];
 
-const SORT_KEY = 'sortOrder'; // 정렬 선택을 기억해 둘 이름
-
 // 화면 요소 찾아두기
 const listEl = document.getElementById('record-list');
 const emptyEl = document.getElementById('empty-message');
 const sortBtn = document.getElementById('sort-btn');
 const addBtn = document.getElementById('add-btn');
+const memoBtn = document.getElementById('memo-btn');
+const tabButtons = document.querySelectorAll('.tab-btn');
 const backdrop = document.getElementById('sheet-backdrop');
 const form = document.getElementById('record-form');
 const sheetTitle = document.getElementById('sheet-title');
@@ -54,27 +54,29 @@ const tagPicker = createTagPicker(document.getElementById('tag-field'));
 
 // 앱 상태
 let records = [];       // 저장소에서 불러온 이력들
-let attachmentCounts = new Map(); // 이력 id → 첨부 개수
+let attachmentCounts = new Map(); // 이력·순간 id → 첨부 개수
 let editingId = null;   // 수정 중인 이력의 id (새로 추가할 때는 null)
 let formRecordId = null; // 입력 창에 열린 이력의 id (새 이력이면 미리 만들어 둔 id)
 let dateMode = 'single'; // 'single' = 하루, 'range' = 기간
-let sortOrder = loadSortOrder(); // 'desc' = 최신순, 'asc' = 오래된순
+let sortOrder = loadPref('sortOrder', ['desc', 'asc']);      // 'desc' = 최신순, 'asc' = 오래된순
+let activeTab = loadPref('activeTab', ['records', 'moments']); // 'records' = 이력, 'moments' = 의미 있는 순간
 // 'all' = 전체, 'important' = 중요만, 'draft' = 작성 중만, 'tag:리더십' = 그 태그만
 let activeFilter = 'all';
 let searchQuery = '';            // 검색창에 쓴 글
 
-// ----- 정렬 선택 기억하기 -----
-// localStorage는 막혀 있을 수도 있어서, 실패하면 기본값(최신순)을 써요.
-function loadSortOrder() {
+// ----- 화면 선택(정렬, 탭) 기억하기 -----
+// localStorage는 막혀 있을 수도 있어서, 실패하면 첫 번째 값(기본값)을 써요.
+function loadPref(key, allowed) {
   try {
-    return localStorage.getItem(SORT_KEY) === 'asc' ? 'asc' : 'desc';
+    const value = localStorage.getItem(key);
+    return allowed.includes(value) ? value : allowed[0];
   } catch (e) {
-    return 'desc';
+    return allowed[0];
   }
 }
-function saveSortOrder() {
+function savePref(key, value) {
   try {
-    localStorage.setItem(SORT_KEY, sortOrder);
+    localStorage.setItem(key, value);
   } catch (e) {
     // 저장 못 해도 앱 사용에는 문제없어요
   }
@@ -149,9 +151,29 @@ function getStar(record) {
 
 // ----- 화면 그리기 -----
 
+// 지금 탭에 맞는 화면 그리기
 function render() {
   sortBtn.textContent = sortOrder === 'asc' ? '오래된순' : '최신순';
 
+  const isRecords = activeTab === 'records';
+  for (const btn of tabButtons) {
+    const isActive = btn.dataset.tab === activeTab;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+  }
+  // 탭에 따라 보이는 것 바꾸기
+  filterBar.hidden = !isRecords;
+  listEl.hidden = !isRecords;
+  momentListEl.hidden = isRecords;
+  memoBtn.hidden = !isRecords;
+  addBtn.textContent = isRecords ? '+ 이력 추가' : '+ 순간 기록';
+  searchInput.placeholder = isRecords ? '검색 (제목, 내용, STAR, 태그)' : '검색 (제목, 생각·감정)';
+
+  if (isRecords) renderRecords();
+  else renderMoments();
+}
+
+function renderRecords() {
   renderFilterBar();
 
   listEl.replaceChildren(); // 기존 카드 지우기
@@ -213,7 +235,7 @@ function renderFilterBar() {
 async function toggleImportant(record) {
   try {
     await saveRecord({ ...record, important: !record.important });
-    await loadRecords();
+    await reloadData();
   } catch (e) {
     console.error(e);
     showToast('중요 표시를 바꾸지 못했어요.');
@@ -445,7 +467,7 @@ async function handleMemoSubmit(event) {
 
   try {
     await saveRecord(record);
-    await loadRecords();
+    await reloadData();
     closeMemo();
     showToast('빠른 메모를 저장했어요.');
   } catch (e) {
@@ -494,7 +516,7 @@ async function handleSubmit(event) {
 
   try {
     await saveRecord(record, added, removedIds);
-    await loadRecords();
+    await reloadData();
     closeSheet();
     if (added.length > 0) warnIfStorageAlmostFull().catch(console.error);
   } catch (e) {
@@ -513,7 +535,7 @@ async function handleDelete() {
 
   try {
     await deleteRecord(editingId);
-    await loadRecords();
+    await reloadData();
     closeSheet();
   } catch (e) {
     console.error(e);
@@ -521,9 +543,10 @@ async function handleDelete() {
   }
 }
 
-// 저장소에서 이력을 다시 읽어 와서 화면 갱신
-async function loadRecords() {
+// 저장소에서 이력·순간·태그를 다시 읽어 와서 화면 갱신
+async function reloadData() {
   records = await getAllRecords();
+  moments = await getAllMoments();
   attachmentCounts = await countAttachmentsByOwner();
   await loadCustomTags();
   render();
@@ -570,8 +593,11 @@ function init() {
     fCategory.appendChild(option);
   }
 
-  // 버튼에 동작 연결
-  addBtn.addEventListener('click', () => openSheet(null));
+  // 버튼에 동작 연결 (+ 버튼은 지금 탭에 맞는 입력 창을 열어요)
+  addBtn.addEventListener('click', () => {
+    if (activeTab === 'records') openSheet(null);
+    else openMomentSheet(null);
+  });
   closeBtn.addEventListener('click', closeSheet);
   deleteBtn.addEventListener('click', handleDelete);
   form.addEventListener('submit', handleSubmit);
@@ -587,7 +613,7 @@ function init() {
   for (const key of STAR_KEYS) starInputs[key].addEventListener('input', updateStarProgress);
 
   // 빠른 메모
-  document.getElementById('memo-btn').addEventListener('click', openMemo);
+  memoBtn.addEventListener('click', openMemo);
   document.getElementById('memo-close-btn').addEventListener('click', closeMemo);
   memoForm.addEventListener('submit', handleMemoSubmit);
   memoBackdrop.addEventListener('click', (event) => {
@@ -606,9 +632,20 @@ function init() {
 
   sortBtn.addEventListener('click', () => {
     sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-    saveSortOrder();
+    savePref('sortOrder', sortOrder);
     render();
   });
+
+  // 탭 바꾸기
+  for (const btn of tabButtons) {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      savePref('activeTab', activeTab);
+      render();
+      window.scrollTo(0, 0);
+    });
+  }
+  initMoments();
 
   // 설정 화면과 백업 알림
   document.getElementById('settings-btn').addEventListener('click', openSettings);
@@ -626,8 +663,8 @@ function init() {
     if (event.target.id === 'image-viewer') closeImageViewer();
   });
 
-  loadRecords()
-    .then(() => checkBackupReminder(records))
+  reloadData()
+    .then(() => checkBackupReminder([...records, ...moments]))
     .catch((e) => {
       console.error(e);
       emptyEl.hidden = false;

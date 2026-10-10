@@ -3,11 +3,11 @@
 // 서버 없이도 새로고침하거나 앱을 껐다 켜도 데이터가 남아 있어요.
 
 const DB_NAME = 'my-record-db';
-const DB_VERSION = 4; // 저장소 구조를 바꿀 때마다 1씩 올려요
+const DB_VERSION = 5; // 저장소 구조를 바꿀 때마다 1씩 올려요
 
 // 백업 파일에 들어가는 저장소 목록 (새 저장소를 만들면 여기에도 추가해요)
 // 'meta'(앱 설정)는 기기마다 다른 정보라서 백업에 넣지 않아요.
-const DATA_STORES = ['records', 'attachments', 'tags'];
+const DATA_STORES = ['records', 'attachments', 'tags', 'moments'];
 
 let dbPromise = null;
 
@@ -40,6 +40,10 @@ function openDB() {
       if (oldVersion < 4) {
         // 버전 4: 내가 직접 만든 역량 태그 저장소 (기본 태그는 코드에 들어 있어요)
         db.createObjectStore('tags', { keyPath: 'name' });
+      }
+      if (oldVersion < 5) {
+        // 버전 5: 의미 있는 순간 저장소 (사진은 attachments 저장소에 함께 보관)
+        db.createObjectStore('moments', { keyPath: 'id' });
       }
     };
 
@@ -81,33 +85,27 @@ async function getStore(storeName, mode) {
   return db.transaction(storeName, mode).objectStore(storeName);
 }
 
-// ----- 이력 -----
+// ----- 첨부가 달리는 항목(이력, 의미 있는 순간) 공통 -----
 
-// 모든 이력 가져오기
-async function getAllRecords() {
-  const store = await getStore('records', 'readonly');
-  return promisifyRequest(store.getAll());
-}
-
-// 이력 저장하기 (같은 id가 있으면 수정, 없으면 새로 추가)
+// 항목 저장하기 (같은 id가 있으면 수정, 없으면 새로 추가)
 // 새로 추가한 첨부(added)와 지운 첨부(removedIds)도 한꺼번에 처리해요.
-async function saveRecord(record, added = [], removedIds = []) {
+async function saveWithAttachments(storeName, item, added = [], removedIds = []) {
   const db = await openDB();
-  const tx = db.transaction(['records', 'attachments'], 'readwrite');
+  const tx = db.transaction([storeName, 'attachments'], 'readwrite');
   const done = waitForTransaction(tx);
-  tx.objectStore('records').put(record);
+  tx.objectStore(storeName).put(item);
   const attachments = tx.objectStore('attachments');
-  for (const item of added) attachments.put(item);
+  for (const attachment of added) attachments.put(attachment);
   for (const id of removedIds) attachments.delete(id);
   return done;
 }
 
-// 이력 삭제하기 (그 이력의 첨부 파일도 함께 삭제)
-async function deleteRecord(id) {
+// 항목 삭제하기 (그 항목의 첨부 파일도 함께 삭제)
+async function deleteWithAttachments(storeName, id) {
   const db = await openDB();
-  const tx = db.transaction(['records', 'attachments'], 'readwrite');
+  const tx = db.transaction([storeName, 'attachments'], 'readwrite');
   const done = waitForTransaction(tx);
-  tx.objectStore('records').delete(id);
+  tx.objectStore(storeName).delete(id);
   const index = tx.objectStore('attachments').index('ownerId');
   index.openCursor(IDBKeyRange.only(id)).onsuccess = (event) => {
     const cursor = event.target.result;
@@ -117,6 +115,36 @@ async function deleteRecord(id) {
     }
   };
   return done;
+}
+
+// ----- 이력 -----
+
+async function getAllRecords() {
+  const store = await getStore('records', 'readonly');
+  return promisifyRequest(store.getAll());
+}
+
+function saveRecord(record, added, removedIds) {
+  return saveWithAttachments('records', record, added, removedIds);
+}
+
+function deleteRecord(id) {
+  return deleteWithAttachments('records', id);
+}
+
+// ----- 의미 있는 순간 -----
+
+async function getAllMoments() {
+  const store = await getStore('moments', 'readonly');
+  return promisifyRequest(store.getAll());
+}
+
+function saveMoment(moment, added, removedIds) {
+  return saveWithAttachments('moments', moment, added, removedIds);
+}
+
+function deleteMoment(id) {
+  return deleteWithAttachments('moments', id);
 }
 
 // ----- 첨부 파일 -----

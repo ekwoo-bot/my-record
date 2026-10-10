@@ -9,13 +9,19 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- 머리글: 앱 이름, 정렬 버튼, 설정 버튼 -->
-  <header class="app-header">
-    <h1>나의 기록</h1>
-    <div class="header-actions">
-      <button id="sort-btn" class="chip-btn" type="button">최신순</button>
-      <button id="settings-btn" class="chip-btn" type="button">설정</button>
+  <!-- 머리글: 앱 이름, 정렬 버튼, 설정 버튼, 탭 -->
+  <header class="app-header main-header">
+    <div class="header-row">
+      <h1>나의 기록</h1>
+      <div class="header-actions">
+        <button id="sort-btn" class="chip-btn" type="button">최신순</button>
+        <button id="settings-btn" class="chip-btn" type="button">설정</button>
+      </div>
     </div>
+    <nav class="tab-bar" aria-label="탭">
+      <button class="tab-btn" type="button" data-tab="records">이력</button>
+      <button class="tab-btn" type="button" data-tab="moments">의미 있는 순간</button>
+    </nav>
   </header>
 
   <!-- 이력 리스트가 그려지는 곳 -->
@@ -31,13 +37,14 @@
 
     <!-- 검색: 제목, 내용, STAR, 태그 -->
     <div class="search-box">
-      <input id="search-input" type="search" placeholder="검색 (제목, 내용, STAR, 태그)" enterkeyhint="search" aria-label="검색">
+      <input id="search-input" type="search" enterkeyhint="search" aria-label="검색">
     </div>
 
     <!-- 필터: 원하는 이력만 모아 보기 (버튼은 app.js가 만들어요) -->
     <div id="filter-bar" class="filter-bar" role="group" aria-label="필터"></div>
 
     <ul id="record-list" class="record-list"></ul>
+    <ul id="moment-list" class="record-list" hidden></ul>
     <p id="empty-message" class="empty-message" hidden></p>
   </main>
 
@@ -181,6 +188,50 @@
     </form>
   </div>
 
+  <!-- 의미 있는 순간 입력 창 -->
+  <div id="moment-backdrop" class="sheet-backdrop" hidden>
+    <form id="moment-form" class="sheet" novalidate>
+      <div class="sheet-header">
+        <h2 id="moment-sheet-title">의미 있는 순간</h2>
+        <button id="moment-close-btn" class="text-btn" type="button">닫기</button>
+      </div>
+
+      <label class="field">
+        <span>날짜 <em class="required">*</em></span>
+        <input id="mo-date" type="date">
+      </label>
+
+      <label class="field">
+        <span>제목 <em class="required">*</em></span>
+        <input id="mo-title" type="text" maxlength="100" placeholder="예: 첫 월급을 받은 날">
+      </label>
+
+      <label class="field">
+        <span>그때의 생각이나 감정</span>
+        <textarea id="mo-thoughts" rows="8" placeholder="그때 어떤 생각이 들었나요? 어떤 기분이었나요?"></textarea>
+      </label>
+
+      <!-- 사진 첨부 (사진만) -->
+      <div id="moment-attachments" class="field">
+        <span>사진</span>
+        <ul class="attachment-list"></ul>
+        <div class="attach-buttons">
+          <button type="button" class="secondary-btn small js-add-file">+ 사진</button>
+        </div>
+        <input type="file" class="js-file-input" accept="image/*" multiple hidden>
+        <p class="field-hint js-attach-status" hidden></p>
+        <p class="field-hint attach-hint">사진은 자동으로 줄여서 저장해요.</p>
+      </div>
+
+      <p id="moment-error" class="form-error" hidden></p>
+
+      <div class="sheet-actions">
+        <button class="primary-btn" type="submit">저장</button>
+        <button id="moment-delete-btn" class="danger-btn" type="button" hidden>삭제</button>
+      </div>
+    </form>
+  </div>
+
   <!-- 설정 화면 (화면 전체를 덮어요) -->
   <section id="settings-view" class="page" hidden>
     <header class="app-header">
@@ -258,6 +309,7 @@
   <script src="js/attachments.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/tags.js"></script>
+  <script src="js/moments.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

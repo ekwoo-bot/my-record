@@ -143,7 +143,7 @@ async function handleDeleteTag(name) {
     await deleteTagEverywhere(name);
     customTags = customTags.filter((t) => t !== name);
     if (activeFilter === `tag:${name}`) activeFilter = 'all';
-    await loadRecords();
+    await reloadData();
     await refreshTagSettings();
     showToast('태그를 삭제했어요.');
   } catch (e) {

@@ -43,6 +43,22 @@ button { cursor: pointer; }
 }
 .app-header h1 { margin: 0; font-size: 20px; }
 
+/* 메인 머리글: 윗줄(제목·버튼) + 아랫줄(탭) */
+.main-header { flex-direction: column; align-items: stretch; padding-bottom: 0; }
+.header-row { display: flex; align-items: center; justify-content: space-between; }
+.tab-bar { display: flex; margin-top: 8px; }
+.tab-btn {
+  flex: 1;
+  min-height: 44px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--text-soft);
+  font-size: 15px;
+  font-weight: 600;
+}
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
 .header-actions { display: flex; gap: 8px; }
 .header-spacer { width: 60px; }
 .back-btn { width: 60px; padding: 0; text-align: left; color: var(--text); }
@@ -209,6 +225,36 @@ button { cursor: pointer; }
 }
 .custom-tag-item:last-child { border-bottom: none; }
 .danger-text { color: var(--danger); }
+
+/* ===== 의미 있는 순간 카드 ===== */
+.moment-card { display: flex; gap: 12px; align-items: flex-start; }
+.moment-body { flex: 1; min-width: 0; }
+.moment-card .title { margin-top: 2px; }
+.moment-thoughts {
+  display: -webkit-box;
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 14px;
+  white-space: pre-line;
+  overflow: hidden;
+  -webkit-line-clamp: 2; /* 두 줄까지만 보여주기 */
+  -webkit-box-orient: vertical;
+}
+.moment-thumb-wrap { position: relative; flex-shrink: 0; width: 64px; height: 64px; }
+.moment-thumb { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--bg); }
+.moment-photo-count {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+}
+
+/* 버튼이 하나만 있을 때도 오른쪽에 붙어 있게 */
+#add-btn { margin-left: auto; }
 
 /* 작성 중 배지 */
 .record-card .badge.draft {

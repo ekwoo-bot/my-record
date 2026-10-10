@@ -271,26 +271,29 @@ function createAttachmentEditor(root) {
     fileInput.value = '';
     if (files.length) addFiles(files);
   });
-  addLinkBtn.addEventListener('click', () => showLinkForm(true));
-  root.querySelector('.js-link-add').addEventListener('click', addLink);
-  root.querySelector('.js-link-cancel').addEventListener('click', () => showLinkForm(false));
-  // 링크 칸에서 Enter를 누르면 이력 전체가 저장되지 않고 링크만 추가되게
-  for (const input of [linkUrl, linkName]) {
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        addLink();
-      }
-    });
+  // 링크 칸은 이력에만 있어요 (의미 있는 순간은 사진만)
+  if (addLinkBtn) {
+    addLinkBtn.addEventListener('click', () => showLinkForm(true));
+    root.querySelector('.js-link-add').addEventListener('click', addLink);
+    root.querySelector('.js-link-cancel').addEventListener('click', () => showLinkForm(false));
+    // 링크 칸에서 Enter를 누르면 이력 전체가 저장되지 않고 링크만 추가되게
+    for (const input of [linkUrl, linkName]) {
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addLink();
+        }
+      });
+    }
   }
 
   return {
-    // 입력 창을 열 때: 어느 이력의 첨부인지와 기존 첨부 목록을 받아요
+    // 입력 창을 열 때: 어느 항목의 첨부인지와 기존 첨부 목록을 받아요
     load(newOwnerId, existing) {
       ownerId = newOwnerId;
       items = [...existing];
       removedIds = [];
-      showLinkForm(false);
+      if (addLinkBtn) showLinkForm(false);
       setStatus('');
       render();
     },
