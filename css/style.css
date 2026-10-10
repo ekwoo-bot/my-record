@@ -109,12 +109,48 @@ button { cursor: pointer; }
   margin-top: 60px;
   text-align: center;
   color: var(--text-soft);
+  white-space: pre-line; /* 글 속 줄바꿈(\n)을 그대로 보여줘요 */
+}
+
+/* ===== 필터 ===== */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto; /* 필터가 많아지면 옆으로 밀어서 보기 */
+  scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text-soft);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.filter-chip.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+/* 작성 중 배지 */
+.record-card .badge.draft {
+  margin-left: 6px;
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 /* ===== 아래 고정 버튼 ===== */
 .bottom-actions {
   position: fixed;
+  left: 16px;
   right: 16px;
+  justify-content: space-between;
   bottom: calc(20px + env(safe-area-inset-bottom));
   z-index: 20;
   display: flex;
@@ -131,6 +167,41 @@ button { cursor: pointer; }
   font-weight: 600;
   box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
 }
+.fab.secondary {
+  border: 1px solid var(--primary);
+  background: var(--card);
+  color: var(--primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== STAR 정리 (접었다 펴기) ===== */
+.star-section {
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.star-section summary {
+  min-height: 48px;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.star-section[open] summary { border-bottom: 1px solid var(--border); }
+.star-section > :not(summary) { margin-left: 14px; margin-right: 14px; }
+.star-intro { margin-top: 10px; margin-bottom: 12px; }
+.star-progress { color: var(--primary); font-size: 13px; font-weight: 500; }
+
+/* 작성 중 체크 */
+.check-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 15px;
+}
+.check-field input { width: 20px; height: 20px; margin: 2px 0 0; flex-shrink: 0; }
+.check-field small { color: var(--text-soft); }
 
 /* ===== 입력 시트 ===== */
 .sheet-backdrop {

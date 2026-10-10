@@ -29,15 +29,43 @@
       </div>
     </div>
 
+    <!-- 필터: 원하는 이력만 모아 보기 -->
+    <div class="filter-bar" role="group" aria-label="필터">
+      <button class="filter-chip" type="button" data-filter="all">전체</button>
+      <button class="filter-chip" type="button" data-filter="draft">작성 중</button>
+    </div>
+
     <ul id="record-list" class="record-list"></ul>
-    <p id="empty-message" class="empty-message" hidden>
-      아직 기록이 없어요.<br>아래 + 버튼으로 첫 이력을 추가해 보세요.
-    </p>
+    <p id="empty-message" class="empty-message" hidden></p>
   </main>
 
-  <!-- 화면 오른쪽 아래 고정 버튼 (엄지가 닿기 쉬운 곳) -->
+  <!-- 화면 아래 고정 버튼 (엄지가 닿기 쉬운 곳) -->
   <div class="bottom-actions">
+    <button id="memo-btn" class="fab secondary" type="button">빠른 메모</button>
     <button id="add-btn" class="fab" type="button">+ 이력 추가</button>
+  </div>
+
+  <!-- 빠른 메모 창: 제목과 날짜만 -->
+  <div id="memo-backdrop" class="sheet-backdrop" hidden>
+    <form id="memo-form" class="sheet" novalidate>
+      <div class="sheet-header">
+        <h2>빠른 메모</h2>
+        <button id="memo-close-btn" class="text-btn" type="button">닫기</button>
+      </div>
+      <label class="field">
+        <span>제목 <em class="required">*</em></span>
+        <input id="m-title" type="text" maxlength="100" placeholder="예: 동아리 발표회 사회 봄" enterkeyhint="done">
+      </label>
+      <label class="field">
+        <span>날짜 <em class="required">*</em></span>
+        <input id="m-date" type="date">
+      </label>
+      <p class="field-hint">'작성 중'으로 저장돼요. 나중에 카드를 눌러 내용을 채워 주세요.</p>
+      <p id="memo-error" class="form-error" hidden></p>
+      <div class="sheet-actions">
+        <button class="primary-btn" type="submit">저장</button>
+      </div>
+    </form>
   </div>
 
   <!-- 입력 창: 아래에서 올라오는 시트 -->
@@ -84,6 +112,28 @@
         <textarea id="f-content" rows="6" placeholder="무엇을 했는지 자유롭게 적어 주세요."></textarea>
       </label>
 
+      <!-- STAR 정리: 처음에는 접혀 있어요 -->
+      <details id="star-section" class="star-section">
+        <summary>STAR 정리 (선택) <span id="star-progress" class="star-progress"></span></summary>
+        <p class="field-hint star-intro">자기소개서나 면접에서 경험을 설명할 때 쓰는 틀이에요. 생각나는 칸만 채워도 괜찮아요.</p>
+        <label class="field">
+          <span>상황 (S)</span>
+          <textarea id="f-star-s" class="star-input" rows="3" placeholder="어떤 상황이었나요? 예: 팀 프로젝트 마감 2주 전에 팀원 한 명이 빠졌어요."></textarea>
+        </label>
+        <label class="field">
+          <span>과제 (T)</span>
+          <textarea id="f-star-t" class="star-input" rows="3" placeholder="내가 맡은 일이나 목표는 무엇이었나요?"></textarea>
+        </label>
+        <label class="field">
+          <span>행동 (A)</span>
+          <textarea id="f-star-a" class="star-input" rows="3" placeholder="문제를 해결하려고 구체적으로 무엇을 했나요?"></textarea>
+        </label>
+        <label class="field">
+          <span>결과 (R)</span>
+          <textarea id="f-star-r" class="star-input" rows="3" placeholder="어떤 결과가 나왔나요? 숫자로 표현할 수 있으면 더 좋아요."></textarea>
+        </label>
+      </details>
+
       <!-- 결과물 첨부: 사진·파일·링크 -->
       <div id="record-attachments" class="field">
         <span>결과물</span>
@@ -104,6 +154,11 @@
         <p class="field-hint js-attach-status" hidden></p>
         <p class="field-hint attach-hint">사진은 자동으로 줄여서 저장해요. 10MB가 넘는 파일은 링크로 첨부해 주세요.</p>
       </div>
+
+      <label class="check-field">
+        <input id="f-draft" type="checkbox">
+        <span>작성 중으로 표시 <small>(내용을 다 채우면 체크를 풀어 주세요)</small></span>
+      </label>
 
       <p id="form-error" class="form-error" hidden></p>
 

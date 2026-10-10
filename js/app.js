@@ -26,7 +26,29 @@ const modeRangeBtn = document.getElementById('mode-range');
 const startLabel = document.getElementById('start-label');
 const endField = document.getElementById('end-field');
 const endHint = document.getElementById('end-hint');
+const fDraft = document.getElementById('f-draft');
+const starSection = document.getElementById('star-section');
+const starProgress = document.getElementById('star-progress');
 const attachmentEditor = createAttachmentEditor(document.getElementById('record-attachments'));
+
+// STAR 입력칸 4개 (s=상황, t=과제, a=행동, r=결과)
+const STAR_KEYS = ['s', 't', 'a', 'r'];
+const starInputs = {
+  s: document.getElementById('f-star-s'),
+  t: document.getElementById('f-star-t'),
+  a: document.getElementById('f-star-a'),
+  r: document.getElementById('f-star-r'),
+};
+
+// 빠른 메모 창
+const memoBackdrop = document.getElementById('memo-backdrop');
+const memoForm = document.getElementById('memo-form');
+const memoTitle = document.getElementById('m-title');
+const memoDate = document.getElementById('m-date');
+const memoError = document.getElementById('memo-error');
+
+// 필터 버튼들
+const filterChips = document.querySelectorAll('.filter-chip');
 
 // 앱 상태
 let records = [];       // 저장소에서 불러온 이력들
@@ -35,6 +57,7 @@ let editingId = null;   // 수정 중인 이력의 id (새로 추가할 때는 n
 let formRecordId = null; // 입력 창에 열린 이력의 id (새 이력이면 미리 만들어 둔 id)
 let dateMode = 'single'; // 'single' = 하루, 'range' = 기간
 let sortOrder = loadSortOrder(); // 'desc' = 최신순, 'asc' = 오래된순
+let activeFilter = 'all';        // 'all' = 전체, 'draft' = 작성 중만
 
 // ----- 정렬 선택 기억하기 -----
 // localStorage는 막혀 있을 수도 있어서, 실패하면 기본값(최신순)을 써요.
@@ -85,15 +108,41 @@ function sortRecords(list) {
   });
 }
 
+// 선택한 필터에 맞는 이력만 고르기
+function filterRecords(list) {
+  if (activeFilter === 'draft') return list.filter((r) => r.isDraft);
+  return list;
+}
+
+// STAR 칸이 비어 있는 이력도 있어서, 항상 4칸이 있는 모양으로 맞춰요
+function getStar(record) {
+  const star = (record && record.star) || {};
+  return { s: star.s || '', t: star.t || '', a: star.a || '', r: star.r || '' };
+}
+
 // ----- 화면 그리기 -----
 
 function render() {
   sortBtn.textContent = sortOrder === 'asc' ? '오래된순' : '최신순';
 
-  listEl.replaceChildren(); // 기존 카드 지우기
-  emptyEl.hidden = records.length > 0;
+  // 필터 버튼 모양과 개수
+  const draftCount = records.filter((r) => r.isDraft).length;
+  for (const chip of filterChips) {
+    chip.classList.toggle('active', chip.dataset.filter === activeFilter);
+    if (chip.dataset.filter === 'draft') chip.textContent = `작성 중 ${draftCount}`;
+  }
 
-  for (const record of sortRecords(records)) {
+  listEl.replaceChildren(); // 기존 카드 지우기
+  const visible = sortRecords(filterRecords(records));
+
+  emptyEl.hidden = visible.length > 0;
+  if (records.length === 0) {
+    emptyEl.textContent = '아직 기록이 없어요.\n아래 + 버튼으로 첫 이력을 추가해 보세요.';
+  } else if (activeFilter === 'draft') {
+    emptyEl.textContent = '작성 중인 이력이 없어요.';
+  }
+
+  for (const record of visible) {
     listEl.appendChild(createCard(record));
   }
 }
@@ -120,6 +169,14 @@ function createCard(record) {
   period.textContent = formatPeriod(record);
 
   card.append(badge);
+
+  // 빠른 메모 등으로 아직 다 쓰지 않은 이력
+  if (record.isDraft) {
+    const draftBadge = document.createElement('span');
+    draftBadge.className = 'badge draft';
+    draftBadge.textContent = '작성 중';
+    card.appendChild(draftBadge);
+  }
 
   // 첨부가 있으면 분류 옆에 개수 표시
   const count = attachmentCounts.get(record.id) || 0;
@@ -195,6 +252,13 @@ async function openSheet(record) {
   fEnd.value = record && !single ? record.endDate : '';
   fCategory.value = record ? record.category : CATEGORIES[0];
   fContent.value = record ? record.content : '';
+  fDraft.checked = record ? !!record.isDraft : false;
+
+  // STAR 칸 채우기 (처음에는 항상 접힌 상태)
+  const star = getStar(record);
+  for (const key of STAR_KEYS) starInputs[key].value = star[key];
+  starSection.open = false;
+  updateStarProgress();
 
   backdrop.hidden = false;
   document.body.style.overflow = 'hidden'; // 뒤 화면이 같이 스크롤되지 않게
@@ -211,6 +275,65 @@ function closeSheet() {
 function showError(message) {
   errorEl.textContent = message;
   errorEl.hidden = false;
+}
+
+// STAR 제목 옆에 "2/4 작성" 표시
+function updateStarProgress() {
+  const filled = STAR_KEYS.filter((key) => starInputs[key].value.trim()).length;
+  starProgress.textContent = filled > 0 ? `· ${filled}/4 작성` : '';
+}
+
+// ----- 빠른 메모 -----
+
+function openMemo() {
+  memoTitle.value = '';
+  memoDate.value = dateToString(new Date()); // 기본값은 오늘
+  memoError.hidden = true;
+  memoBackdrop.hidden = false;
+  document.body.style.overflow = 'hidden';
+  memoTitle.focus(); // 바로 키보드가 올라오게
+}
+
+function closeMemo() {
+  memoBackdrop.hidden = true;
+  document.body.style.overflow = '';
+}
+
+async function handleMemoSubmit(event) {
+  event.preventDefault();
+
+  const title = memoTitle.value.trim();
+  const date = memoDate.value;
+  const showMemoError = (message) => {
+    memoError.textContent = message;
+    memoError.hidden = false;
+  };
+  if (!title) return showMemoError('제목을 입력해 주세요.');
+  if (!date) return showMemoError('날짜를 선택해 주세요.');
+
+  const now = Date.now();
+  const record = {
+    id: makeId(),
+    title,
+    startDate: date,
+    endDate: date, // 하루짜리로 저장 (나중에 기간으로 바꿀 수 있어요)
+    category: '기타',
+    content: '',
+    star: getStar(null),
+    isDraft: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await saveRecord(record);
+    await loadRecords();
+    closeMemo();
+    showToast('빠른 메모를 저장했어요.');
+  } catch (e) {
+    console.error(e);
+    showMemoError('저장하지 못했어요. 다시 시도해 주세요.');
+  }
 }
 
 // ----- 저장 / 삭제 -----
@@ -241,6 +364,8 @@ async function handleSubmit(event) {
     endDate,
     category: fCategory.value,
     content: fContent.value,
+    star: Object.fromEntries(STAR_KEYS.map((key) => [key, starInputs[key].value])),
+    isDraft: fDraft.checked,
     createdAt: existing ? existing.createdAt : now,
     updatedAt: now,
   };
@@ -335,6 +460,25 @@ function init() {
   backdrop.addEventListener('click', (event) => {
     if (event.target === backdrop) closeSheet();
   });
+
+  // STAR 칸에 글을 쓸 때마다 "N/4 작성" 갱신
+  for (const key of STAR_KEYS) starInputs[key].addEventListener('input', updateStarProgress);
+
+  // 빠른 메모
+  document.getElementById('memo-btn').addEventListener('click', openMemo);
+  document.getElementById('memo-close-btn').addEventListener('click', closeMemo);
+  memoForm.addEventListener('submit', handleMemoSubmit);
+  memoBackdrop.addEventListener('click', (event) => {
+    if (event.target === memoBackdrop) closeMemo();
+  });
+
+  // 필터
+  for (const chip of filterChips) {
+    chip.addEventListener('click', () => {
+      activeFilter = chip.dataset.filter;
+      render();
+    });
+  }
 
   sortBtn.addEventListener('click', () => {
     sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
