@@ -245,6 +245,34 @@ async function loadRecords() {
   render();
 }
 
+// ----- 설정 화면 열기/닫기 -----
+
+const settingsView = document.getElementById('settings-view');
+
+function openSettings() {
+  settingsView.hidden = false;
+  settingsView.scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+  refreshBackupInfo().catch(console.error);
+}
+
+function closeSettings() {
+  settingsView.hidden = true;
+  document.body.style.overflow = '';
+}
+
+// ----- 잠깐 나타났다 사라지는 안내 문구 -----
+
+let toastTimer = null;
+
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, 2500);
+}
+
 // ----- 시작 -----
 
 function init() {
@@ -275,11 +303,22 @@ function init() {
     render();
   });
 
-  loadRecords().catch((e) => {
-    console.error(e);
-    emptyEl.hidden = false;
-    emptyEl.textContent = '저장된 기록을 불러오지 못했어요. 브라우저의 시크릿 모드에서는 저장이 안 될 수 있어요.';
+  // 설정 화면과 백업 알림
+  document.getElementById('settings-btn').addEventListener('click', openSettings);
+  document.getElementById('settings-back-btn').addEventListener('click', closeSettings);
+  document.getElementById('banner-backup-btn').addEventListener('click', openSettings);
+  document.getElementById('banner-later-btn').addEventListener('click', () => {
+    document.getElementById('backup-banner').hidden = true; // 다음에 앱을 열 때 다시 알려줘요
   });
+  initBackup();
+
+  loadRecords()
+    .then(() => checkBackupReminder(records))
+    .catch((e) => {
+      console.error(e);
+      emptyEl.hidden = false;
+      emptyEl.textContent = '저장된 기록을 불러오지 못했어요. 브라우저의 시크릿 모드에서는 저장이 안 될 수 있어요.';
+    });
 }
 
 init();

@@ -9,14 +9,26 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- 머리글: 앱 이름과 정렬 버튼 -->
+  <!-- 머리글: 앱 이름, 정렬 버튼, 설정 버튼 -->
   <header class="app-header">
     <h1>나의 기록</h1>
-    <button id="sort-btn" class="chip-btn" type="button">최신순</button>
+    <div class="header-actions">
+      <button id="sort-btn" class="chip-btn" type="button">최신순</button>
+      <button id="settings-btn" class="chip-btn" type="button">설정</button>
+    </div>
   </header>
 
   <!-- 이력 리스트가 그려지는 곳 -->
   <main class="content">
+    <!-- 백업 알림 (30일 넘게 백업하지 않았을 때) -->
+    <div id="backup-banner" class="banner" hidden>
+      <p id="backup-banner-text"></p>
+      <div class="banner-actions">
+        <button id="banner-backup-btn" class="primary-btn small" type="button">백업하러 가기</button>
+        <button id="banner-later-btn" class="text-btn" type="button">나중에</button>
+      </div>
+    </div>
+
     <ul id="record-list" class="record-list"></ul>
     <p id="empty-message" class="empty-message" hidden>
       아직 기록이 없어요.<br>아래 + 버튼으로 첫 이력을 추가해 보세요.
@@ -81,8 +93,49 @@
     </form>
   </div>
 
-  <!-- db.js(저장소)를 먼저 불러온 뒤 app.js(화면 동작)를 불러와요 -->
+  <!-- 설정 화면 (화면 전체를 덮어요) -->
+  <section id="settings-view" class="page" hidden>
+    <header class="app-header">
+      <button id="settings-back-btn" class="text-btn back-btn" type="button">← 뒤로</button>
+      <h1>설정</h1>
+      <span class="header-spacer"></span>
+    </header>
+
+    <main class="content">
+      <section class="panel">
+        <h2>백업 내보내기</h2>
+        <p class="panel-desc">
+          모든 기록을 파일 하나로 저장해요. 휴대폰에서는 공유 창이 열리니
+          구글 드라이브나 iCloud에 저장해 두세요.
+        </p>
+        <p class="panel-info">마지막 백업: <strong id="last-backup-text">-</strong></p>
+        <div class="panel-actions">
+          <button id="export-btn" class="primary-btn" type="button">백업 파일 내보내기</button>
+          <button id="share-again-btn" class="primary-btn" type="button" hidden>공유 창 열기</button>
+        </div>
+        <p id="backup-status" class="status-text" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2>백업 불러오기</h2>
+        <p class="panel-desc">
+          백업 파일로 기록을 되살려요. 지금 앱에 있는 데이터는 백업 파일 내용으로 바뀌어요.
+        </p>
+        <div class="panel-actions">
+          <button id="import-btn" class="secondary-btn" type="button">백업 파일 불러오기</button>
+          <button id="restore-btn" class="secondary-btn" type="button" hidden>불러오기 전으로 되돌리기</button>
+        </div>
+        <input id="import-input" type="file" accept=".json,.txt,application/json,text/plain" hidden>
+      </section>
+    </main>
+  </section>
+
+  <!-- 잠깐 나타났다 사라지는 안내 문구 -->
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- db.js(저장소) → backup.js(백업) → app.js(화면 동작) 순서로 불러와요 -->
   <script src="js/db.js"></script>
+  <script src="js/backup.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
