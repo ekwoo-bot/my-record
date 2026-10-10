@@ -3,11 +3,11 @@
 // 서버 없이도 새로고침하거나 앱을 껐다 켜도 데이터가 남아 있어요.
 
 const DB_NAME = 'my-record-db';
-const DB_VERSION = 3; // 저장소 구조를 바꿀 때마다 1씩 올려요
+const DB_VERSION = 4; // 저장소 구조를 바꿀 때마다 1씩 올려요
 
 // 백업 파일에 들어가는 저장소 목록 (새 저장소를 만들면 여기에도 추가해요)
 // 'meta'(앱 설정)는 기기마다 다른 정보라서 백업에 넣지 않아요.
-const DATA_STORES = ['records', 'attachments'];
+const DATA_STORES = ['records', 'attachments', 'tags'];
 
 let dbPromise = null;
 
@@ -36,6 +36,10 @@ function openDB() {
         // 버전 3: 첨부 파일 저장소. ownerId(어느 이력의 첨부인지)로 찾을 수 있게 색인을 만들어요
         const attachments = db.createObjectStore('attachments', { keyPath: 'id' });
         attachments.createIndex('ownerId', 'ownerId');
+      }
+      if (oldVersion < 4) {
+        // 버전 4: 내가 직접 만든 역량 태그 저장소 (기본 태그는 코드에 들어 있어요)
+        db.createObjectStore('tags', { keyPath: 'name' });
       }
     };
 
@@ -138,6 +142,36 @@ async function countAttachmentsByOwner() {
     };
     request.onerror = () => reject(request.error);
   });
+}
+
+// ----- 직접 만든 태그 -----
+
+async function getAllTags() {
+  const store = await getStore('tags', 'readonly');
+  return promisifyRequest(store.getAll());
+}
+
+async function saveTag(tag) {
+  const store = await getStore('tags', 'readwrite');
+  return promisifyRequest(store.put(tag));
+}
+
+// 태그를 지우고, 그 태그가 달린 모든 이력에서도 빼요
+async function deleteTagEverywhere(name) {
+  const db = await openDB();
+  const tx = db.transaction(['tags', 'records'], 'readwrite');
+  const done = waitForTransaction(tx);
+  tx.objectStore('tags').delete(name);
+  tx.objectStore('records').openCursor().onsuccess = (event) => {
+    const cursor = event.target.result;
+    if (!cursor) return;
+    const record = cursor.value;
+    if (Array.isArray(record.tags) && record.tags.includes(name)) {
+      cursor.update({ ...record, tags: record.tags.filter((t) => t !== name) });
+    }
+    cursor.continue();
+  };
+  return done;
 }
 
 // ----- 앱 설정 (meta) -----

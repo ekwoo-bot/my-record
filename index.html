@@ -29,11 +29,13 @@
       </div>
     </div>
 
-    <!-- 필터: 원하는 이력만 모아 보기 -->
-    <div class="filter-bar" role="group" aria-label="필터">
-      <button class="filter-chip" type="button" data-filter="all">전체</button>
-      <button class="filter-chip" type="button" data-filter="draft">작성 중</button>
+    <!-- 검색: 제목, 내용, STAR, 태그 -->
+    <div class="search-box">
+      <input id="search-input" type="search" placeholder="검색 (제목, 내용, STAR, 태그)" enterkeyhint="search" aria-label="검색">
     </div>
+
+    <!-- 필터: 원하는 이력만 모아 보기 (버튼은 app.js가 만들어요) -->
+    <div id="filter-bar" class="filter-bar" role="group" aria-label="필터"></div>
 
     <ul id="record-list" class="record-list"></ul>
     <p id="empty-message" class="empty-message" hidden></p>
@@ -111,6 +113,16 @@
         <span>내용</span>
         <textarea id="f-content" rows="6" placeholder="무엇을 했는지 자유롭게 적어 주세요."></textarea>
       </label>
+
+      <!-- 역량 태그: 눌러서 여러 개 고르기 -->
+      <div id="tag-field" class="field">
+        <span>역량 태그</span>
+        <div class="tag-picker"></div>
+        <div class="tag-add">
+          <input class="js-new-tag" type="text" maxlength="20" placeholder="새 태그 이름" enterkeyhint="done">
+          <button class="secondary-btn small js-add-tag" type="button">추가</button>
+        </div>
+      </div>
 
       <!-- STAR 정리: 처음에는 접혀 있어요 -->
       <details id="star-section" class="star-section">
@@ -205,6 +217,16 @@
       </section>
 
       <section class="panel">
+        <h2>내가 만든 태그</h2>
+        <p class="panel-desc">
+          기본 태그(리더십, 협업, 문제 해결, 소통, 책임감, 도전, 분석력) 외에 직접 만든 태그예요.
+          새 태그는 이력 입력 창에서 만들 수 있어요.
+        </p>
+        <ul id="custom-tag-list" class="custom-tag-list"></ul>
+        <p id="custom-tag-empty" class="panel-desc" hidden>아직 직접 만든 태그가 없어요.</p>
+      </section>
+
+      <section class="panel">
         <h2>저장 공간</h2>
         <p class="panel-info">사용 중: <strong id="storage-usage-text">확인 중...</strong></p>
         <div class="meter"><div id="storage-meter-bar" class="meter-bar"></div></div>
@@ -235,6 +257,7 @@
   <script src="js/backup.js"></script>
   <script src="js/attachments.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/tags.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

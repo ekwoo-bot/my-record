@@ -47,8 +47,10 @@ const memoTitle = document.getElementById('m-title');
 const memoDate = document.getElementById('m-date');
 const memoError = document.getElementById('memo-error');
 
-// 필터 버튼들
-const filterChips = document.querySelectorAll('.filter-chip');
+// 필터, 검색, 태그 고르기
+const filterBar = document.getElementById('filter-bar');
+const searchInput = document.getElementById('search-input');
+const tagPicker = createTagPicker(document.getElementById('tag-field'));
 
 // 앱 상태
 let records = [];       // 저장소에서 불러온 이력들
@@ -57,7 +59,9 @@ let editingId = null;   // 수정 중인 이력의 id (새로 추가할 때는 n
 let formRecordId = null; // 입력 창에 열린 이력의 id (새 이력이면 미리 만들어 둔 id)
 let dateMode = 'single'; // 'single' = 하루, 'range' = 기간
 let sortOrder = loadSortOrder(); // 'desc' = 최신순, 'asc' = 오래된순
-let activeFilter = 'all';        // 'all' = 전체, 'draft' = 작성 중만
+// 'all' = 전체, 'important' = 중요만, 'draft' = 작성 중만, 'tag:리더십' = 그 태그만
+let activeFilter = 'all';
+let searchQuery = '';            // 검색창에 쓴 글
 
 // ----- 정렬 선택 기억하기 -----
 // localStorage는 막혀 있을 수도 있어서, 실패하면 기본값(최신순)을 써요.
@@ -108,10 +112,33 @@ function sortRecords(list) {
   });
 }
 
-// 선택한 필터에 맞는 이력만 고르기
+// 선택한 필터와 검색어에 맞는 이력만 고르기
 function filterRecords(list) {
-  if (activeFilter === 'draft') return list.filter((r) => r.isDraft);
-  return list;
+  let result = list;
+  if (activeFilter === 'important') result = result.filter((r) => r.important);
+  else if (activeFilter === 'draft') result = result.filter((r) => r.isDraft);
+  else if (activeFilter.startsWith('tag:')) {
+    const tag = activeFilter.slice(4);
+    result = result.filter((r) => (r.tags || []).includes(tag));
+  }
+  if (searchQuery.trim()) {
+    result = result.filter((r) => matchesQuery(getSearchTexts(r), searchQuery));
+  }
+  return result;
+}
+
+// 검색 대상: 제목, 내용, 분류, STAR 4칸, 태그
+function getSearchTexts(record) {
+  const star = getStar(record);
+  const tags = (record.tags || []).map((t) => `#${t}`);
+  return [record.title, record.content, record.category, star.s, star.t, star.a, star.r, ...tags];
+}
+
+// 태그 필터로 바꾸고 맨 위로 올라가기 (카드의 태그를 눌렀을 때)
+function filterByTag(tag) {
+  activeFilter = `tag:${tag}`;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // STAR 칸이 비어 있는 이력도 있어서, 항상 4칸이 있는 모양으로 맞춰요
@@ -125,12 +152,7 @@ function getStar(record) {
 function render() {
   sortBtn.textContent = sortOrder === 'asc' ? '오래된순' : '최신순';
 
-  // 필터 버튼 모양과 개수
-  const draftCount = records.filter((r) => r.isDraft).length;
-  for (const chip of filterChips) {
-    chip.classList.toggle('active', chip.dataset.filter === activeFilter);
-    if (chip.dataset.filter === 'draft') chip.textContent = `작성 중 ${draftCount}`;
-  }
+  renderFilterBar();
 
   listEl.replaceChildren(); // 기존 카드 지우기
   const visible = sortRecords(filterRecords(records));
@@ -138,8 +160,14 @@ function render() {
   emptyEl.hidden = visible.length > 0;
   if (records.length === 0) {
     emptyEl.textContent = '아직 기록이 없어요.\n아래 + 버튼으로 첫 이력을 추가해 보세요.';
+  } else if (searchQuery.trim()) {
+    emptyEl.textContent = `'${searchQuery.trim()}'에 맞는 이력이 없어요.`;
+  } else if (activeFilter === 'important') {
+    emptyEl.textContent = '중요 표시한 이력이 없어요.\n카드 오른쪽 위의 ☆를 눌러 표시해 보세요.';
   } else if (activeFilter === 'draft') {
     emptyEl.textContent = '작성 중인 이력이 없어요.';
+  } else if (activeFilter.startsWith('tag:')) {
+    emptyEl.textContent = `#${activeFilter.slice(4)} 태그가 달린 이력이 없어요.`;
   }
 
   for (const record of visible) {
@@ -147,18 +175,105 @@ function render() {
   }
 }
 
+// 필터 버튼 줄 만들기: 전체 / 중요 / 작성 중 / 쓰인 태그들
+function renderFilterBar() {
+  const chips = [
+    { key: 'all', label: '전체' },
+    { key: 'important', label: `★ 중요 ${records.filter((r) => r.important).length}` },
+    { key: 'draft', label: `작성 중 ${records.filter((r) => r.isDraft).length}` },
+  ];
+
+  // 이력에 한 번이라도 쓰인 태그만 보여줘요 (지금 고른 태그는 항상 보이게)
+  const tagCounts = new Map();
+  for (const r of records) for (const t of r.tags || []) tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
+  const activeTag = activeFilter.startsWith('tag:') ? activeFilter.slice(4) : null;
+  if (activeTag && !tagCounts.has(activeTag)) tagCounts.set(activeTag, 0);
+  for (const tag of sortTags([...tagCounts.keys()])) {
+    chips.push({ key: `tag:${tag}`, label: `#${tag} ${tagCounts.get(tag)}` });
+  }
+
+  filterBar.replaceChildren();
+  for (const { key, label } of chips) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'filter-chip';
+    chip.textContent = label;
+    const isActive = key === activeFilter;
+    chip.classList.toggle('active', isActive);
+    chip.setAttribute('aria-pressed', String(isActive));
+    chip.addEventListener('click', () => {
+      activeFilter = key;
+      render();
+    });
+    filterBar.appendChild(chip);
+  }
+}
+
+// 중요 표시 켜고 끄기 (카드의 ☆ 버튼)
+async function toggleImportant(record) {
+  try {
+    await saveRecord({ ...record, important: !record.important });
+    await loadRecords();
+  } catch (e) {
+    console.error(e);
+    showToast('중요 표시를 바꾸지 못했어요.');
+  }
+}
+
 // 이력 카드 하나 만들기
 // 사용자가 쓴 글은 textContent로만 넣어서, 글 속의 코드가 실행되지 않게 해요.
 function createCard(record) {
   const li = document.createElement('li');
-  const card = document.createElement('button');
-  card.type = 'button';
+  // 카드 안에 별표·태그 버튼이 들어가야 해서, 카드 자체는 div로 만들고 "버튼 역할"을 줘요
+  const card = document.createElement('div');
   card.className = 'record-card';
+  card.setAttribute('role', 'button');
+  card.tabIndex = 0;
   card.addEventListener('click', () => openSheet(record));
+  card.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && event.target === card) openSheet(record);
+  });
+
+  // 윗줄: 분류·작성 중·결과물 개수 + 오른쪽 별표
+  const top = document.createElement('div');
+  top.className = 'card-top';
+  const badges = document.createElement('div');
+  badges.className = 'card-badges';
 
   const badge = document.createElement('span');
   badge.className = 'badge';
   badge.textContent = record.category;
+  badges.appendChild(badge);
+
+  // 빠른 메모 등으로 아직 다 쓰지 않은 이력
+  if (record.isDraft) {
+    const draftBadge = document.createElement('span');
+    draftBadge.className = 'badge draft';
+    draftBadge.textContent = '작성 중';
+    badges.appendChild(draftBadge);
+  }
+
+  // 첨부가 있으면 개수 표시
+  const count = attachmentCounts.get(record.id) || 0;
+  if (count > 0) {
+    const attachCount = document.createElement('span');
+    attachCount.className = 'attach-count';
+    attachCount.textContent = `결과물 ${count}개`;
+    badges.appendChild(attachCount);
+  }
+
+  const importantBtn = document.createElement('button');
+  importantBtn.type = 'button';
+  importantBtn.className = 'important-btn';
+  importantBtn.classList.toggle('on', !!record.important);
+  importantBtn.textContent = record.important ? '★' : '☆';
+  importantBtn.setAttribute('aria-label', record.important ? '중요 표시 해제' : '중요 표시');
+  importantBtn.addEventListener('click', (event) => {
+    event.stopPropagation(); // 카드가 열리지 않게
+    toggleImportant(record);
+  });
+
+  top.append(badges, importantBtn);
 
   const title = document.createElement('span');
   title.className = 'title';
@@ -168,26 +283,7 @@ function createCard(record) {
   period.className = 'period';
   period.textContent = formatPeriod(record);
 
-  card.append(badge);
-
-  // 빠른 메모 등으로 아직 다 쓰지 않은 이력
-  if (record.isDraft) {
-    const draftBadge = document.createElement('span');
-    draftBadge.className = 'badge draft';
-    draftBadge.textContent = '작성 중';
-    card.appendChild(draftBadge);
-  }
-
-  // 첨부가 있으면 분류 옆에 개수 표시
-  const count = attachmentCounts.get(record.id) || 0;
-  if (count > 0) {
-    const attachCount = document.createElement('span');
-    attachCount.className = 'attach-count';
-    attachCount.textContent = `결과물 ${count}개`;
-    card.appendChild(attachCount);
-  }
-
-  card.append(title, period);
+  card.append(top, title, period);
 
   // 내용이 있으면 첫 줄만 미리보기
   const firstLine = (record.content || '').trim().split('\n')[0];
@@ -196,6 +292,25 @@ function createCard(record) {
     preview.className = 'preview';
     preview.textContent = firstLine;
     card.appendChild(preview);
+  }
+
+  // 태그: 누르면 그 태그가 달린 이력만 모아 보기
+  const tags = sortTags(record.tags || []);
+  if (tags.length > 0) {
+    const tagRow = document.createElement('div');
+    tagRow.className = 'card-tags';
+    for (const tag of tags) {
+      const tagBtn = document.createElement('button');
+      tagBtn.type = 'button';
+      tagBtn.className = 'card-tag';
+      tagBtn.textContent = `#${tag}`;
+      tagBtn.addEventListener('click', (event) => {
+        event.stopPropagation(); // 카드가 열리지 않게
+        filterByTag(tag);
+      });
+      tagRow.appendChild(tagBtn);
+    }
+    card.appendChild(tagRow);
   }
 
   li.appendChild(card);
@@ -253,6 +368,7 @@ async function openSheet(record) {
   fCategory.value = record ? record.category : CATEGORIES[0];
   fContent.value = record ? record.content : '';
   fDraft.checked = record ? !!record.isDraft : false;
+  tagPicker.load(record ? record.tags : []);
 
   // STAR 칸 채우기 (처음에는 항상 접힌 상태)
   const star = getStar(record);
@@ -320,6 +436,8 @@ async function handleMemoSubmit(event) {
     category: '기타',
     content: '',
     star: getStar(null),
+    tags: [],
+    important: false,
     isDraft: true,
     createdAt: now,
     updatedAt: now,
@@ -365,6 +483,8 @@ async function handleSubmit(event) {
     category: fCategory.value,
     content: fContent.value,
     star: Object.fromEntries(STAR_KEYS.map((key) => [key, starInputs[key].value])),
+    tags: tagPicker.getSelected(),
+    important: existing ? !!existing.important : false,
     isDraft: fDraft.checked,
     createdAt: existing ? existing.createdAt : now,
     updatedAt: now,
@@ -405,6 +525,7 @@ async function handleDelete() {
 async function loadRecords() {
   records = await getAllRecords();
   attachmentCounts = await countAttachmentsByOwner();
+  await loadCustomTags();
   render();
 }
 
@@ -418,6 +539,7 @@ function openSettings() {
   document.body.style.overflow = 'hidden';
   refreshBackupInfo().catch(console.error);
   refreshStorageInfo().catch(console.error);
+  refreshTagSettings().catch(console.error);
 }
 
 function closeSettings() {
@@ -472,13 +594,15 @@ function init() {
     if (event.target === memoBackdrop) closeMemo();
   });
 
-  // 필터
-  for (const chip of filterChips) {
-    chip.addEventListener('click', () => {
-      activeFilter = chip.dataset.filter;
-      render();
-    });
-  }
+  // 검색: 글자를 칠 때마다 바로 결과 갱신
+  searchInput.addEventListener('input', () => {
+    searchQuery = searchInput.value;
+    render();
+  });
+  // 휴대폰 키보드의 "검색"을 누르면 키보드 내리기
+  searchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') searchInput.blur();
+  });
 
   sortBtn.addEventListener('click', () => {
     sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
