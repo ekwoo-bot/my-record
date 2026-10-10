@@ -688,3 +688,9 @@ function init() {
 }
 
 init();
+
+// 홈 화면 앱(PWA)용 서비스 워커 등록
+// 인터넷 주소(https)로 열었을 때만 동작해요. 내 컴퓨터 파일(file://)로 열면 건너뛰어요.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(console.error);
+}
