@@ -53,7 +53,7 @@ function renderMoments() {
     emptyEl.textContent = `'${searchQuery.trim()}'에 맞는 순간이 없어요.`;
   }
 
-  for (const moment of visible) momentListEl.appendChild(createMomentCard(moment));
+  appendItems(momentListEl, visible, (moment) => moment.date, createMomentCard);
 }
 
 function createMomentCard(moment) {

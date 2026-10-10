@@ -226,6 +226,52 @@ button { cursor: pointer; }
 .custom-tag-item:last-child { border-bottom: none; }
 .danger-text { color: var(--danger); }
 
+/* ===== 묶어 보기와 정렬 ===== */
+.list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.chip-select {
+  min-height: 36px;
+  padding: 0 32px 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E") no-repeat right 12px center;
+  font-size: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* 묶음 제목 */
+.group-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 18px 2px 8px;
+}
+.group-header:first-child { margin-top: 4px; }
+.group-title { font-size: 16px; font-weight: 700; }
+.group-meta { color: var(--text-soft); font-size: 13px; }
+
+/* 설정: 기간 목록 */
+.period-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.period-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 10px 2px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  text-align: left;
+}
+.period-name { font-weight: 600; }
+.period-range { color: var(--text-soft); font-size: 13px; }
+.secondary-btn.full { width: 100%; }
+
 /* ===== 의미 있는 순간 카드 ===== */
 .moment-card { display: flex; gap: 12px; align-items: flex-start; }
 .moment-body { flex: 1; min-width: 0; }

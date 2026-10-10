@@ -10,6 +10,8 @@ const sortBtn = document.getElementById('sort-btn');
 const addBtn = document.getElementById('add-btn');
 const memoBtn = document.getElementById('memo-btn');
 const tabButtons = document.querySelectorAll('.tab-btn');
+const groupSelect = document.getElementById('group-select');
+const periodHint = document.getElementById('period-hint');
 const backdrop = document.getElementById('sheet-backdrop');
 const form = document.getElementById('record-form');
 const sheetTitle = document.getElementById('sheet-title');
@@ -60,6 +62,7 @@ let formRecordId = null; // 입력 창에 열린 이력의 id (새 이력이면 
 let dateMode = 'single'; // 'single' = 하루, 'range' = 기간
 let sortOrder = loadPref('sortOrder', ['desc', 'asc']);      // 'desc' = 최신순, 'asc' = 오래된순
 let activeTab = loadPref('activeTab', ['records', 'moments']); // 'records' = 이력, 'moments' = 의미 있는 순간
+let groupMode = loadPref('groupMode', ['none', 'period', 'year']); // 묶지 않기 / 기간별 / 연도별
 // 'all' = 전체, 'important' = 중요만, 'draft' = 작성 중만, 'tag:리더십' = 그 태그만
 let activeFilter = 'all';
 let searchQuery = '';            // 검색창에 쓴 글
@@ -168,6 +171,8 @@ function render() {
   memoBtn.hidden = !isRecords;
   addBtn.textContent = isRecords ? '+ 이력 추가' : '+ 순간 기록';
   searchInput.placeholder = isRecords ? '검색 (제목, 내용, STAR, 태그)' : '검색 (제목, 생각·감정)';
+  groupSelect.value = groupMode;
+  periodHint.hidden = !(groupMode === 'period' && periods.length === 0);
 
   if (isRecords) renderRecords();
   else renderMoments();
@@ -192,9 +197,8 @@ function renderRecords() {
     emptyEl.textContent = `#${activeFilter.slice(4)} 태그가 달린 이력이 없어요.`;
   }
 
-  for (const record of visible) {
-    listEl.appendChild(createCard(record));
-  }
+  // 이력은 시작일 기준으로 묶어요
+  appendItems(listEl, visible, (record) => record.startDate, createCard);
 }
 
 // 필터 버튼 줄 만들기: 전체 / 중요 / 작성 중 / 쓰인 태그들
@@ -547,6 +551,7 @@ async function handleDelete() {
 async function reloadData() {
   records = await getAllRecords();
   moments = await getAllMoments();
+  await loadPeriods();
   attachmentCounts = await countAttachmentsByOwner();
   await loadCustomTags();
   render();
@@ -563,6 +568,7 @@ function openSettings() {
   refreshBackupInfo().catch(console.error);
   refreshStorageInfo().catch(console.error);
   refreshTagSettings().catch(console.error);
+  refreshPeriodSettings();
 }
 
 function closeSettings() {
@@ -646,6 +652,15 @@ function init() {
     });
   }
   initMoments();
+
+  // 묶어 보기
+  groupSelect.addEventListener('change', () => {
+    groupMode = groupSelect.value;
+    savePref('groupMode', groupMode);
+    render();
+  });
+  document.getElementById('period-hint-btn').addEventListener('click', openSettings);
+  initPeriods();
 
   // 설정 화면과 백업 알림
   document.getElementById('settings-btn').addEventListener('click', openSettings);

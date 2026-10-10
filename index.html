@@ -14,7 +14,6 @@
     <div class="header-row">
       <h1>나의 기록</h1>
       <div class="header-actions">
-        <button id="sort-btn" class="chip-btn" type="button">최신순</button>
         <button id="settings-btn" class="chip-btn" type="button">설정</button>
       </div>
     </div>
@@ -38,6 +37,24 @@
     <!-- 검색: 제목, 내용, STAR, 태그 -->
     <div class="search-box">
       <input id="search-input" type="search" enterkeyhint="search" aria-label="검색">
+    </div>
+
+    <!-- 묶어 보기와 정렬 -->
+    <div class="list-toolbar">
+      <select id="group-select" class="chip-select" aria-label="묶어 보기">
+        <option value="none">묶지 않기</option>
+        <option value="period">기간별로 묶기</option>
+        <option value="year">연도별로 묶기</option>
+      </select>
+      <button id="sort-btn" class="chip-btn" type="button">최신순</button>
+    </div>
+
+    <!-- 기간별로 묶기를 골랐는데 만든 기간이 없을 때 -->
+    <div id="period-hint" class="banner" hidden>
+      <p>아직 만든 기간이 없어서 모두 "기타"로 묶였어요. "1학년", "군복무"처럼 기간을 만들어 보세요.</p>
+      <div class="banner-actions">
+        <button id="period-hint-btn" class="primary-btn small" type="button">기간 만들러 가기</button>
+      </div>
     </div>
 
     <!-- 필터: 원하는 이력만 모아 보기 (버튼은 app.js가 만들어요) -->
@@ -268,6 +285,17 @@
       </section>
 
       <section class="panel">
+        <h2>기간 관리</h2>
+        <p class="panel-desc">
+          "1학년", "군복무", "휴학 기간"처럼 기간을 만들면, 목록에서 "기간별로 묶기"를 골랐을 때
+          기록이 기간 아래에 묶여 보여요. 이력은 시작일을 기준으로 묶어요.
+        </p>
+        <ul id="period-list" class="period-list"></ul>
+        <p id="period-empty" class="panel-desc" hidden>아직 만든 기간이 없어요.</p>
+        <button id="add-period-btn" class="secondary-btn full" type="button">+ 기간 추가</button>
+      </section>
+
+      <section class="panel">
         <h2>내가 만든 태그</h2>
         <p class="panel-desc">
           기본 태그(리더십, 협업, 문제 해결, 소통, 책임감, 도전, 분석력) 외에 직접 만든 태그예요.
@@ -294,6 +322,36 @@
     </main>
   </section>
 
+  <!-- 기간 입력 창 (설정 화면 위에 열려요) -->
+  <div id="period-backdrop" class="sheet-backdrop" hidden>
+    <form id="period-form" class="sheet" novalidate>
+      <div class="sheet-header">
+        <h2 id="period-sheet-title">기간 추가</h2>
+        <button id="period-close-btn" class="text-btn" type="button">닫기</button>
+      </div>
+      <label class="field">
+        <span>기간 이름 <em class="required">*</em></span>
+        <input id="p-name" type="text" maxlength="30" placeholder="예: 1학년, 군복무, 휴학 기간">
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>시작일 <em class="required">*</em></span>
+          <input id="p-start" type="date">
+        </label>
+        <label class="field">
+          <span>종료일 (선택)</span>
+          <input id="p-end" type="date">
+        </label>
+      </div>
+      <p class="field-hint">종료일을 비워 두면 '진행 중'인 기간이 돼요.</p>
+      <p id="period-error" class="form-error" hidden></p>
+      <div class="sheet-actions">
+        <button class="primary-btn" type="submit">저장</button>
+        <button id="period-delete-btn" class="danger-btn" type="button" hidden>삭제</button>
+      </div>
+    </form>
+  </div>
+
   <!-- 사진 크게 보기 -->
   <div id="image-viewer" class="viewer" hidden>
     <img id="viewer-img" alt="첨부한 사진">
@@ -310,6 +368,7 @@
   <script src="js/storage.js"></script>
   <script src="js/tags.js"></script>
   <script src="js/moments.js"></script>
+  <script src="js/periods.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

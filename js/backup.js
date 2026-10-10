@@ -203,7 +203,7 @@ async function handleImportFile(file) {
   const ok = confirm(
     '지금 데이터가 덮어써집니다.\n\n' +
     `백업 날짜: ${backupDate}\n` +
-    `이력: ${countOf('records')}개, 의미 있는 순간: ${countOf('moments')}개, 첨부: ${countOf('attachments')}개\n\n` +
+    `이력: ${countOf('records')}개, 의미 있는 순간: ${countOf('moments')}개, 첨부: ${countOf('attachments')}개, 기간: ${countOf('periods')}개\n\n` +
     '불러오기 직전 상태는 자동으로 보관되어, 설정 화면에서 되돌릴 수 있어요.\n계속할까요?'
   );
   if (!ok) return;

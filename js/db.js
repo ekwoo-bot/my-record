@@ -3,11 +3,11 @@
 // 서버 없이도 새로고침하거나 앱을 껐다 켜도 데이터가 남아 있어요.
 
 const DB_NAME = 'my-record-db';
-const DB_VERSION = 5; // 저장소 구조를 바꿀 때마다 1씩 올려요
+const DB_VERSION = 6; // 저장소 구조를 바꿀 때마다 1씩 올려요
 
 // 백업 파일에 들어가는 저장소 목록 (새 저장소를 만들면 여기에도 추가해요)
 // 'meta'(앱 설정)는 기기마다 다른 정보라서 백업에 넣지 않아요.
-const DATA_STORES = ['records', 'attachments', 'tags', 'moments'];
+const DATA_STORES = ['records', 'attachments', 'tags', 'moments', 'periods'];
 
 let dbPromise = null;
 
@@ -44,6 +44,10 @@ function openDB() {
       if (oldVersion < 5) {
         // 버전 5: 의미 있는 순간 저장소 (사진은 attachments 저장소에 함께 보관)
         db.createObjectStore('moments', { keyPath: 'id' });
+      }
+      if (oldVersion < 6) {
+        // 버전 6: 내가 만든 기간 (예: 1학년, 군복무, 휴학 기간)
+        db.createObjectStore('periods', { keyPath: 'id' });
       }
     };
 
@@ -170,6 +174,23 @@ async function countAttachmentsByOwner() {
     };
     request.onerror = () => reject(request.error);
   });
+}
+
+// ----- 기간 -----
+
+async function getAllPeriods() {
+  const store = await getStore('periods', 'readonly');
+  return promisifyRequest(store.getAll());
+}
+
+async function savePeriod(period) {
+  const store = await getStore('periods', 'readwrite');
+  return promisifyRequest(store.put(period));
+}
+
+async function deletePeriod(id) {
+  const store = await getStore('periods', 'readwrite');
+  return promisifyRequest(store.delete(id));
 }
 
 // ----- 직접 만든 태그 -----
