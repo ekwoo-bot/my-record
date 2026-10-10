@@ -84,6 +84,27 @@
         <textarea id="f-content" rows="6" placeholder="무엇을 했는지 자유롭게 적어 주세요."></textarea>
       </label>
 
+      <!-- 결과물 첨부: 사진·파일·링크 -->
+      <div id="record-attachments" class="field">
+        <span>결과물</span>
+        <ul class="attachment-list"></ul>
+        <div class="attach-buttons">
+          <button type="button" class="secondary-btn small js-add-file">+ 사진·파일</button>
+          <button type="button" class="secondary-btn small js-add-link">+ 링크</button>
+        </div>
+        <input type="file" class="js-file-input" multiple hidden>
+        <div class="link-form js-link-form" hidden>
+          <input type="url" class="js-link-url" inputmode="url" placeholder="https://drive.google.com/...">
+          <input type="text" class="js-link-name" maxlength="100" placeholder="링크 이름 (선택)">
+          <div class="link-form-actions">
+            <button type="button" class="primary-btn small js-link-add">링크 추가</button>
+            <button type="button" class="text-btn js-link-cancel">취소</button>
+          </div>
+        </div>
+        <p class="field-hint js-attach-status" hidden></p>
+        <p class="field-hint attach-hint">사진은 자동으로 줄여서 저장해요. 10MB가 넘는 파일은 링크로 첨부해 주세요.</p>
+      </div>
+
       <p id="form-error" class="form-error" hidden></p>
 
       <div class="sheet-actions">
@@ -127,15 +148,38 @@
         </div>
         <input id="import-input" type="file" accept=".json,.txt,application/json,text/plain" hidden>
       </section>
+
+      <section class="panel">
+        <h2>저장 공간</h2>
+        <p class="panel-info">사용 중: <strong id="storage-usage-text">확인 중...</strong></p>
+        <div class="meter"><div id="storage-meter-bar" class="meter-bar"></div></div>
+        <p id="storage-warning" class="warning-text" hidden>
+          저장 공간의 80% 넘게 쓰고 있어요. 백업 파일을 내보내 두고,
+          큰 파일은 구글 드라이브 같은 곳에 올린 뒤 링크로 바꾸는 것을 추천해요.
+        </p>
+        <p class="panel-info">영구 저장: <strong id="persist-text">확인 중...</strong></p>
+        <p class="panel-desc">
+          영구 저장이 켜져 있으면 휴대폰 공간이 부족해도 브라우저가 이 앱의 데이터를 함부로 지우지 않아요.
+        </p>
+        <button id="persist-btn" class="secondary-btn" type="button" hidden>영구 저장 요청하기</button>
+      </section>
     </main>
   </section>
+
+  <!-- 사진 크게 보기 -->
+  <div id="image-viewer" class="viewer" hidden>
+    <img id="viewer-img" alt="첨부한 사진">
+    <button id="viewer-close-btn" class="viewer-close" type="button">닫기</button>
+  </div>
 
   <!-- 잠깐 나타났다 사라지는 안내 문구 -->
   <div id="toast" class="toast" hidden></div>
 
-  <!-- db.js(저장소) → backup.js(백업) → app.js(화면 동작) 순서로 불러와요 -->
+  <!-- 저장소 → 기능별 파일 → app.js(화면 동작) 순서로 불러와요 -->
   <script src="js/db.js"></script>
   <script src="js/backup.js"></script>
+  <script src="js/attachments.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

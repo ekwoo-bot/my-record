@@ -26,10 +26,13 @@ const modeRangeBtn = document.getElementById('mode-range');
 const startLabel = document.getElementById('start-label');
 const endField = document.getElementById('end-field');
 const endHint = document.getElementById('end-hint');
+const attachmentEditor = createAttachmentEditor(document.getElementById('record-attachments'));
 
 // 앱 상태
 let records = [];       // 저장소에서 불러온 이력들
+let attachmentCounts = new Map(); // 이력 id → 첨부 개수
 let editingId = null;   // 수정 중인 이력의 id (새로 추가할 때는 null)
+let formRecordId = null; // 입력 창에 열린 이력의 id (새 이력이면 미리 만들어 둔 id)
 let dateMode = 'single'; // 'single' = 하루, 'range' = 기간
 let sortOrder = loadSortOrder(); // 'desc' = 최신순, 'asc' = 오래된순
 
@@ -116,7 +119,18 @@ function createCard(record) {
   period.className = 'period';
   period.textContent = formatPeriod(record);
 
-  card.append(badge, title, period);
+  card.append(badge);
+
+  // 첨부가 있으면 분류 옆에 개수 표시
+  const count = attachmentCounts.get(record.id) || 0;
+  if (count > 0) {
+    const attachCount = document.createElement('span');
+    attachCount.className = 'attach-count';
+    attachCount.textContent = `결과물 ${count}개`;
+    card.appendChild(attachCount);
+  }
+
+  card.append(title, period);
 
   // 내용이 있으면 첫 줄만 미리보기
   const firstLine = (record.content || '').trim().split('\n')[0];
@@ -153,8 +167,21 @@ function setDateMode(mode) {
 // ----- 입력 창 열기/닫기 -----
 
 // record가 있으면 수정 모드, 없으면 추가 모드
-function openSheet(record) {
+async function openSheet(record) {
   editingId = record ? record.id : null;
+  formRecordId = record ? record.id : makeId();
+
+  // 이 이력에 달린 첨부 불러오기
+  let attachments = [];
+  if (record) {
+    try {
+      attachments = await getAttachmentsByOwner(record.id);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  attachmentEditor.load(formRecordId, attachments);
+
   sheetTitle.textContent = record ? '이력 수정' : '이력 추가';
   deleteBtn.hidden = !record;
   errorEl.hidden = true;
@@ -177,6 +204,8 @@ function closeSheet() {
   backdrop.hidden = true;
   document.body.style.overflow = '';
   editingId = null;
+  formRecordId = null;
+  attachmentEditor.clear();
 }
 
 function showError(message) {
@@ -198,6 +227,7 @@ async function handleSubmit(event) {
   if (!title) return showError('제목을 입력해 주세요.');
   if (!startDate) return showError(dateMode === 'single' ? '날짜를 선택해 주세요.' : '시작일을 선택해 주세요.');
   if (endDate && endDate < startDate) return showError('종료일은 시작일보다 빠를 수 없어요.');
+  if (attachmentEditor.isBusy()) return showError('파일을 준비하는 중이에요. 잠시 후 다시 저장해 주세요.');
 
   const now = Date.now();
   const existing = records.find((r) => r.id === editingId);
@@ -205,7 +235,7 @@ async function handleSubmit(event) {
   // 기존 이력을 수정할 때는 원래 값(...existing)을 유지한 채 바뀐 칸만 덮어써요.
   const record = {
     ...existing,
-    id: existing ? existing.id : makeId(),
+    id: formRecordId,
     title,
     startDate,
     endDate,
@@ -215,19 +245,26 @@ async function handleSubmit(event) {
     updatedAt: now,
   };
 
+  const { added, removedIds } = attachmentEditor.getChanges();
+
   try {
-    await saveRecord(record);
+    await saveRecord(record, added, removedIds);
     await loadRecords();
     closeSheet();
+    if (added.length > 0) warnIfStorageAlmostFull().catch(console.error);
   } catch (e) {
     console.error(e);
-    showError('저장하지 못했어요. 다시 시도해 주세요.');
+    if (e && e.name === 'QuotaExceededError') {
+      showError('저장 공간이 부족해요. 큰 파일은 링크로 바꾸거나 설정에서 저장 공간을 확인해 주세요.');
+    } else {
+      showError('저장하지 못했어요. 다시 시도해 주세요.');
+    }
   }
 }
 
 async function handleDelete() {
   if (!editingId) return;
-  if (!confirm('이 이력을 삭제할까요? 되돌릴 수 없어요.')) return;
+  if (!confirm('이 이력을 삭제할까요? 첨부한 결과물도 함께 삭제되고, 되돌릴 수 없어요.')) return;
 
   try {
     await deleteRecord(editingId);
@@ -242,6 +279,7 @@ async function handleDelete() {
 // 저장소에서 이력을 다시 읽어 와서 화면 갱신
 async function loadRecords() {
   records = await getAllRecords();
+  attachmentCounts = await countAttachmentsByOwner();
   render();
 }
 
@@ -254,6 +292,7 @@ function openSettings() {
   settingsView.scrollTop = 0;
   document.body.style.overflow = 'hidden';
   refreshBackupInfo().catch(console.error);
+  refreshStorageInfo().catch(console.error);
 }
 
 function closeSettings() {
@@ -311,6 +350,13 @@ function init() {
     document.getElementById('backup-banner').hidden = true; // 다음에 앱을 열 때 다시 알려줘요
   });
   initBackup();
+  initStorage();
+
+  // 사진 크게 보기 닫기 (닫기 버튼 또는 사진 바깥 누르기)
+  document.getElementById('viewer-close-btn').addEventListener('click', closeImageViewer);
+  document.getElementById('image-viewer').addEventListener('click', (event) => {
+    if (event.target.id === 'image-viewer') closeImageViewer();
+  });
 
   loadRecords()
     .then(() => checkBackupReminder(records))

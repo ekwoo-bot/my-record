@@ -3,11 +3,11 @@
 // 서버 없이도 새로고침하거나 앱을 껐다 켜도 데이터가 남아 있어요.
 
 const DB_NAME = 'my-record-db';
-const DB_VERSION = 2; // 저장소 구조를 바꿀 때마다 1씩 올려요
+const DB_VERSION = 3; // 저장소 구조를 바꿀 때마다 1씩 올려요
 
 // 백업 파일에 들어가는 저장소 목록 (새 저장소를 만들면 여기에도 추가해요)
 // 'meta'(앱 설정)는 기기마다 다른 정보라서 백업에 넣지 않아요.
-const DATA_STORES = ['records'];
+const DATA_STORES = ['records', 'attachments'];
 
 let dbPromise = null;
 
@@ -31,6 +31,11 @@ function openDB() {
       if (oldVersion < 2) {
         // 버전 2: 앱 설정 저장소 (마지막 백업 날짜 등)
         db.createObjectStore('meta', { keyPath: 'key' });
+      }
+      if (oldVersion < 3) {
+        // 버전 3: 첨부 파일 저장소. ownerId(어느 이력의 첨부인지)로 찾을 수 있게 색인을 만들어요
+        const attachments = db.createObjectStore('attachments', { keyPath: 'id' });
+        attachments.createIndex('ownerId', 'ownerId');
       }
     };
 
@@ -81,15 +86,58 @@ async function getAllRecords() {
 }
 
 // 이력 저장하기 (같은 id가 있으면 수정, 없으면 새로 추가)
-async function saveRecord(record) {
-  const store = await getStore('records', 'readwrite');
-  return promisifyRequest(store.put(record));
+// 새로 추가한 첨부(added)와 지운 첨부(removedIds)도 한꺼번에 처리해요.
+async function saveRecord(record, added = [], removedIds = []) {
+  const db = await openDB();
+  const tx = db.transaction(['records', 'attachments'], 'readwrite');
+  const done = waitForTransaction(tx);
+  tx.objectStore('records').put(record);
+  const attachments = tx.objectStore('attachments');
+  for (const item of added) attachments.put(item);
+  for (const id of removedIds) attachments.delete(id);
+  return done;
 }
 
-// 이력 삭제하기
+// 이력 삭제하기 (그 이력의 첨부 파일도 함께 삭제)
 async function deleteRecord(id) {
-  const store = await getStore('records', 'readwrite');
-  return promisifyRequest(store.delete(id));
+  const db = await openDB();
+  const tx = db.transaction(['records', 'attachments'], 'readwrite');
+  const done = waitForTransaction(tx);
+  tx.objectStore('records').delete(id);
+  const index = tx.objectStore('attachments').index('ownerId');
+  index.openCursor(IDBKeyRange.only(id)).onsuccess = (event) => {
+    const cursor = event.target.result;
+    if (cursor) {
+      cursor.delete();
+      cursor.continue();
+    }
+  };
+  return done;
+}
+
+// ----- 첨부 파일 -----
+
+// 이력 하나에 달린 첨부 목록 가져오기
+async function getAttachmentsByOwner(ownerId) {
+  const store = await getStore('attachments', 'readonly');
+  const list = await promisifyRequest(store.index('ownerId').getAll(ownerId));
+  return list.sort((a, b) => a.createdAt - b.createdAt);
+}
+
+// 이력마다 첨부가 몇 개인지 세기 (파일 내용은 읽지 않아서 빨라요)
+async function countAttachmentsByOwner() {
+  const store = await getStore('attachments', 'readonly');
+  const counts = new Map();
+  return new Promise((resolve, reject) => {
+    const request = store.index('ownerId').openKeyCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return resolve(counts);
+      counts.set(cursor.key, (counts.get(cursor.key) || 0) + 1);
+      cursor.continue();
+    };
+    request.onerror = () => reject(request.error);
+  });
 }
 
 // ----- 앱 설정 (meta) -----
