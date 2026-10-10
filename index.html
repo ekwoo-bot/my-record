@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <!-- 휴대폰 화면 폭에 맞추고, 노치 영역까지 화면을 쓰도록 설정 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <title>나의 기록</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 머리글: 앱 이름과 정렬 버튼 -->
+  <header class="app-header">
+    <h1>나의 기록</h1>
+    <button id="sort-btn" class="chip-btn" type="button">최신순</button>
+  </header>
+
+  <!-- 이력 리스트가 그려지는 곳 -->
+  <main class="content">
+    <ul id="record-list" class="record-list"></ul>
+    <p id="empty-message" class="empty-message" hidden>
+      아직 기록이 없어요.<br>아래 + 버튼으로 첫 이력을 추가해 보세요.
+    </p>
+  </main>
+
+  <!-- 화면 오른쪽 아래 고정 버튼 (엄지가 닿기 쉬운 곳) -->
+  <div class="bottom-actions">
+    <button id="add-btn" class="fab" type="button">+ 이력 추가</button>
+  </div>
+
+  <!-- 입력 창: 아래에서 올라오는 시트 -->
+  <div id="sheet-backdrop" class="sheet-backdrop" hidden>
+    <form id="record-form" class="sheet" novalidate>
+      <div class="sheet-header">
+        <h2 id="sheet-title">이력 추가</h2>
+        <button id="close-btn" class="text-btn" type="button">닫기</button>
+      </div>
+
+      <label class="field">
+        <span>제목 <em class="required">*</em></span>
+        <input id="f-title" type="text" maxlength="100" placeholder="예: 교내 해커톤 참가">
+      </label>
+
+      <!-- 하루에 끝난 일인지, 기간 동안 한 일인지 고르기 -->
+      <div class="field">
+        <span>날짜 형식</span>
+        <div class="segmented" role="group" aria-label="날짜 형식">
+          <button id="mode-single" type="button" class="seg-btn">하루</button>
+          <button id="mode-range" type="button" class="seg-btn">기간</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span><span id="start-label">날짜</span> <em class="required">*</em></span>
+          <input id="f-start" type="date">
+        </label>
+        <label id="end-field" class="field">
+          <span>종료일 (선택)</span>
+          <input id="f-end" type="date">
+        </label>
+      </div>
+      <p id="end-hint" class="field-hint">종료일을 비워 두면 '진행 중'으로 표시돼요.</p>
+
+      <label class="field">
+        <span>분류</span>
+        <select id="f-category"></select>
+      </label>
+
+      <label class="field">
+        <span>내용</span>
+        <textarea id="f-content" rows="6" placeholder="무엇을 했는지 자유롭게 적어 주세요."></textarea>
+      </label>
+
+      <p id="form-error" class="form-error" hidden></p>
+
+      <div class="sheet-actions">
+        <button class="primary-btn" type="submit">저장</button>
+        <button id="delete-btn" class="danger-btn" type="button" hidden>삭제</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- db.js(저장소)를 먼저 불러온 뒤 app.js(화면 동작)를 불러와요 -->
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
